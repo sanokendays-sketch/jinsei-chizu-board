@@ -844,7 +844,7 @@ body,
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(150px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 1200;
   background: rgba(43, 33, 24, 0.92);
@@ -887,5 +887,549 @@ body,
   .bar .btn {
     padding: 7px 7px;
     font-size: 13px;
+  }
+}
+
+/* ===== ④ ここから ===== */
+.loading-screen {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--sub);
+  font-size: 16px;
+}
+
+/* 見方の切り替え（ボード・地図・年表） */
+.views {
+  display: inline-flex;
+  background: #f6ecdb;
+  border: 1px solid #e8d4b2;
+  border-radius: 11px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.view-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #6b5a48;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 7px 9px;
+  border-radius: 9px;
+  min-height: 36px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.view-tab.on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(60, 40, 10, 0.18);
+}
+
+.view-icon {
+  margin-right: 3px;
+}
+
+.brand-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.menu-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--sub);
+  margin-top: 2px;
+}
+
+/* ボードでカードを選んだときの編集ボタン */
+.edit-fab {
+  position: absolute;
+  left: 50%;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 25;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 20px;
+  box-shadow: 0 6px 18px rgba(120, 60, 10, 0.35);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (min-width: 731px) {
+  .edit-fab {
+    bottom: 24px;
+  }
+}
+
+/* 年表 */
+.timeline {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  overflow-y: auto;
+  background: #fffaf0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.timeline.loading {
+  display: grid;
+  place-items: center;
+  color: var(--sub);
+}
+
+.tl-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 18px 14px calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+.tl-head {
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.tl-title {
+  font-size: 22px;
+  margin: 0;
+}
+
+.tl-count {
+  color: var(--sub);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.tl-birth {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tl-birth input {
+  width: 6.5em;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.tl-birth small {
+  width: 100%;
+  font-weight: 400;
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.tl-decade h2 {
+  font-size: 15px;
+  color: var(--accent);
+  margin: 22px 0 6px;
+  padding-left: 2px;
+}
+
+.tl-decade ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tl-item {
+  display: grid;
+  grid-template-columns: 74px 18px 1fr;
+  gap: 0 6px;
+  position: relative;
+  break-inside: avoid;
+}
+
+.tl-item::before {
+  content: "";
+  position: absolute;
+  left: 86px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ead9bb;
+}
+
+.tl-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-top: 10px;
+  font-size: 13px;
+  color: var(--sub);
+  line-height: 1.35;
+}
+
+.tl-when b {
+  font-size: 19px;
+  color: var(--ink);
+}
+
+.tl-age {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tl-dot {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  margin: 15px 0 0 2px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #c8963e;
+}
+
+.tl-body {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0 14px;
+  min-width: 0;
+}
+
+.tl-photo {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex: none;
+}
+
+.tl-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.tl-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.tl-place {
+  font-size: 13px;
+  color: var(--sub);
+  margin-top: 2px;
+}
+
+.tl-note {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tl-actions .btn-small {
+  min-height: 32px;
+  font-size: 13px;
+  padding: 4px 9px;
+}
+
+.tl-empty {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--sub);
+}
+
+.tl-foot {
+  margin-top: 30px;
+  font-size: 11px;
+  color: #a8957c;
+  text-align: center;
+}
+
+/* ボード一覧・テンプレート */
+.dialog.boards,
+.dialog.export {
+  width: min(560px, 100vw);
+}
+
+.dialog-lead {
+  color: var(--sub);
+  margin: -4px 0 12px;
+}
+
+.board-list,
+.template-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.board-list li {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.board-list li.current {
+  border-color: var(--accent);
+  background: #fffaf2;
+}
+
+.board-open {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.board-icon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  border: 2px solid;
+  border-radius: 12px;
+}
+
+.board-text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.board-text b {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-text small {
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.board-now {
+  font-size: 11px;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 6px;
+  padding: 2px 6px;
+  flex: none;
+}
+
+.board-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-left: 56px;
+  flex-wrap: wrap;
+}
+
+.board-actions .btn-small {
+  min-height: 30px;
+  font-size: 12px;
+  padding: 3px 9px;
+}
+
+.rename {
+  display: flex;
+  gap: 6px;
+}
+
+.rename input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.template-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  border: 2px solid;
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.template-card b {
+  display: block;
+  font-size: 16px;
+}
+
+.template-card small {
+  color: #5f5246;
+  font-size: 13px;
+}
+
+.template-icon {
+  font-size: 30px;
+  flex: none;
+}
+
+.choice-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* 書き出し */
+.export-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1e6d3;
+}
+
+.export-item > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.export-item b {
+  font-size: 16px;
+}
+
+.export-item p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--sub);
+  line-height: 1.6;
+}
+
+.export-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.export-preview {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.export-preview summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.export-preview pre {
+  white-space: pre-wrap;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  max-height: 30vh;
+  overflow: auto;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* 狭い画面 */
+@media (max-width: 400px) {
+  .view-tab {
+    font-size: 13px;
+    padding: 7px 7px;
+  }
+  .view-icon {
+    margin-right: 1px;
+  }
+}
+
+@media (max-width: 360px) {
+  .view-icon {
+    display: none;
+  }
+}
+
+/* 印刷：年表だけを紙に */
+@media print {
+  @page {
+    margin: 14mm 12mm;
+  }
+  html,
+  body,
+  #root,
+  .app {
+    height: auto !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  .bar,
+  .excalidraw,
+  .excalidraw-container,
+  .edit-fab,
+  .toast,
+  .tl-actions,
+  .tl-birth input,
+  .overlay {
+    display: none !important;
+  }
+  .canvas {
+    position: static !important;
+    height: auto !important;
+  }
+  .timeline {
+    position: static !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .tl-birth {
+    display: none !important;
+  }
+  .tl-photo {
+    width: 110px;
+    height: 110px;
+  }
+  .tl-note {
+    -webkit-line-clamp: unset;
+    display: block;
   }
 }

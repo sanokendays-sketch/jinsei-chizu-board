@@ -1,8 +1,13 @@
 // 保存まわり：ブラウザ内(IndexedDB)への自動保存と、バックアップファイルの書き出し・読み込み
-import { get, set } from "idb-keyval";
+// ④からボードを複数持てる形にした。①〜③の保存データ(jinsei-board:v1)は「私の人生地図」として引き継ぎ、元のデータも消さずに残す。
+import { del, get, set } from "idb-keyval";
 
-const KEY = "jinsei-board:v1";
+const OLD_KEY = "jinsei-board:v1";
+const INDEX_KEY = "jinsei:boards";
+const boardKey = (id) => `jinsei:board:${id}`;
 export const BACKUP_TYPE = "jinsei-board-backup";
+
+export const newBoardId = () => `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /** 画面に残っている要素と、それが使っている写真だけを取り出す */
 export function pickScene(elements, files) {
@@ -13,17 +18,56 @@ export function pickScene(elements, files) {
   return { elements: alive, files: keptFiles };
 }
 
-export async function loadLocal() {
+/**
+ * ボードの目次を読む。初めてなら作る。
+ * 目次 = { current: ボードID, boards: [{ id, title, templateId, createdAt, updatedAt, cards }] }
+ */
+export async function loadIndex() {
+  let index = null;
   try {
-    return (await get(KEY)) || null;
+    index = await get(INDEX_KEY);
+  } catch {
+    index = null;
+  }
+  if (index?.boards?.length) {
+    if (!index.boards.some((b) => b.id === index.current)) index.current = index.boards[0].id;
+    return index;
+  }
+  // 初回：①〜③のデータがあれば引き継ぐ
+  const now = Date.now();
+  const id = newBoardId();
+  let old = null;
+  try {
+    old = await get(OLD_KEY);
+  } catch {
+    old = null;
+  }
+  const cards = old ? old.elements.filter((el) => el.customData?.kind === "memory").length : 0;
+  index = { current: id, boards: [{ id, title: "私の人生地図", templateId: "jinsei", createdAt: now, updatedAt: now, cards }] };
+  try {
+    if (old) await set(boardKey(id), { ...old, meta: old.meta || {} });
+    await set(INDEX_KEY, index);
+  } catch {
+    /* 保存できない環境でも、画面は動かす */
+  }
+  return index;
+}
+
+export async function saveIndex(index) {
+  await set(INDEX_KEY, index);
+}
+
+export async function loadBoard(id) {
+  try {
+    return (await get(boardKey(id))) || null;
   } catch {
     return null;
   }
 }
 
-export async function saveLocal(elements, appState, files) {
+export async function saveBoard(id, elements, appState, files, meta) {
   const scene = pickScene(elements, files);
-  await set(KEY, {
+  await set(boardKey(id), {
     ...scene,
     appState: {
       viewBackgroundColor: appState.viewBackgroundColor,
@@ -31,16 +75,29 @@ export async function saveLocal(elements, appState, files) {
       scrollY: appState.scrollY,
       zoom: appState.zoom,
     },
+    meta: meta || {},
     savedAt: Date.now(),
   });
+  return scene.elements.filter((el) => el.customData?.kind === "memory").length;
 }
 
-export function makeBackup(elements, files) {
+/** バックアップ・テンプレートから作るボードの中身をそのまま書き込む */
+export async function writeBoardData(id, data) {
+  await set(boardKey(id), { ...data, savedAt: Date.now() });
+}
+
+export async function deleteBoardData(id) {
+  await del(boardKey(id));
+}
+
+export function makeBackup(elements, files, board, meta) {
   const scene = pickScene(elements, files);
   return JSON.stringify({
     type: BACKUP_TYPE,
-    version: 1,
+    version: 2,
     savedAt: new Date().toISOString(),
+    board: board ? { title: board.title, templateId: board.templateId } : null,
+    meta: meta || {},
     ...scene,
   });
 }
@@ -55,19 +112,30 @@ export function parseBackup(text) {
 
 /**
  * ファイルとして渡す。
- * Claudeのアーティファクト内では downloads 機能を使い、
- * 普通のWebサイト(GitHub Pagesなど)ではブラウザのダウンロードを使う。
+ * スマホで共有シートが使えるならそれを使い（「ファイルに保存」やLINEなどへ送れる）、
+ * だめならブラウザのダウンロード。Claudeのアーティファクト内では downloads 機能を使う。
  */
-export async function offerFile(filename, text) {
+export async function offerFile(filename, data, mime = "application/json") {
   const claude = typeof window !== "undefined" ? window.claude : undefined;
   if (claude && typeof claude.use === "function") {
     const downloads = await claude.use("downloads");
     if (downloads) {
-      await downloads.save({ filename, data: text });
+      await downloads.save({ filename, data });
       return "saved";
     }
   }
-  const blob = new Blob([text], { type: "application/json" });
+  const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+  const file = new File([blob], filename, { type: mime });
+  const touch = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+  if (touch && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return "shared";
+    } catch (e) {
+      if (e?.name === "AbortError") throw Object.assign(new Error("declined"), { code: "declined" });
+      /* 共有できなければダウンロードへ */
+    }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

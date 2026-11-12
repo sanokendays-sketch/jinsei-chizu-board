@@ -127,7 +127,8 @@ function imageSize(dataURL) {
  * 枠(rectangle)の customData にカードの全データを持たせ、
  * 中の文字や写真には cardId だけを持たせてグループにまとめる。
  */
-export async function buildCardElements(card, x, y, photo) {
+export async function buildCardElements(card, x, y, photo, palette) {
+  const C = { ...COLORS, ...(palette || {}) };
   const parts = [];
   let cy = y + P;
 
@@ -139,7 +140,7 @@ export async function buildCardElements(card, x, y, photo) {
     cy += el.height + GAP;
   };
 
-  addText(whenLabel(card), 26, COLORS.year, "when");
+  addText(whenLabel(card), 26, C.year, "when");
   addText(card.title || "（無題）", 22, COLORS.title, "title");
   if (card.place) addText(`📍 ${card.place}`, 16, COLORS.place, "place");
 
@@ -171,8 +172,8 @@ export async function buildCardElements(card, x, y, photo) {
         y,
         width: W,
         height,
-        backgroundColor: COLORS.bg,
-        strokeColor: COLORS.border,
+        backgroundColor: C.bg,
+        strokeColor: C.border,
         fillStyle: "solid",
         strokeWidth: 2,
         roughness: 1,
