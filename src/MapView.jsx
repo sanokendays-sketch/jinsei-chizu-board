@@ -136,14 +136,15 @@ export default function MapView({ cards, files, focusId, onOpenBoard, onEdit }) 
 
   // 一覧から選ばれたカードへ移動
   useEffect(() => {
-    if (!focusId?.id) return;
-    const m = markersRef.current.get(focusId.id);
+    if (!ready || !focusId?.id) return;
     const map = mapRef.current;
+    const m = markersRef.current.get(focusId.id);
     if (m && map) {
       map.flyTo(m.getLatLng(), Math.max(map.getZoom(), 14), { duration: 0.8 });
-      setTimeout(() => m.openPopup(), 850);
+      // ピンは描き直されることがあるので、開く直前に探し直す
+      setTimeout(() => markersRef.current.get(focusId.id)?.openPopup(), 900);
     }
-  }, [focusId]);
+  }, [focusId, ready]);
 
   const skyOn = Boolean(sky.era) || Boolean(skyMessage);
 
