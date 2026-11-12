@@ -21,7 +21,9 @@ export const newId = () =>
   (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/-/g, "");
 
 /** カードのデータ（customData に入れる中身）。②で lat/lng、④でタグなどを足していく */
-export function cardData({ cardId, year, month, day, title, place, note, fileId }) {
+export function cardData({ cardId, year, month, day, title, place, note, fileId, lat, lng }) {
+  const round = (n) => Math.round(Number(n) * 1e6) / 1e6;
+  const located = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && lat !== null && lng !== null;
   return {
     kind: CARD_KIND,
     v: 1,
@@ -33,6 +35,8 @@ export function cardData({ cardId, year, month, day, title, place, note, fileId 
     place: place || "",
     note: note || "",
     fileId: fileId || null,
+    lat: located ? round(lat) : null, // ② 地図上の場所
+    lng: located ? round(lng) : null,
   };
 }
 

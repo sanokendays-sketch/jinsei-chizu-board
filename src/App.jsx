@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Excalidraw,
   CaptureUpdateAction,
@@ -20,12 +21,18 @@ import {
 } from "./cards.js";
 import { loadLocal, makeBackup, offerFile, parseBackup, saveLocal } from "./storage.js";
 
+// 地図は開いたときに読み込む（最初の表示を軽くするため）
+const MapView = lazy(() => import("./MapView.jsx"));
+const MapPicker = lazy(() => import("./MapPicker.jsx"));
+
+const hasLoc = (c) => Number.isFinite(c?.lat) && Number.isFinite(c?.lng);
+
 const BASE_APPSTATE = {
   viewBackgroundColor: "#fffaf0",
   currentItemFontFamily: FONT_FAMILY.Excalifont,
 };
 
-const EMPTY_FORM = { year: "", month: "", day: "", title: "", place: "", note: "" };
+const EMPTY_FORM = { year: "", month: "", day: "", title: "", place: "", note: "", lat: null, lng: null };
 
 export default function App() {
   const apiRef = useRef(null);
@@ -53,6 +60,10 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState(null);
   const [toast, setToast] = useState(null);
+  const [view, setView] = useState("board"); // board | map
+  const [sceneVersion, setSceneVersion] = useState(0);
+  const [mapFocus, setMapFocus] = useState(null);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
   const importInput = useRef(null);
 
   useEffect(() => {
@@ -75,6 +86,7 @@ export default function App() {
       try {
         await saveLocal(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles());
         setSaveState("saved");
+        setLastSavedAt(new Date());
       } catch {
         setSaveState("error");
         if (!saveErrorShown.current) {
@@ -89,8 +101,10 @@ export default function App() {
     (elements, appState, files) => {
       setSelectedCardId(findCardIdInSelection(elements, appState.selectedElementIds));
       setHasContent(elements.some((el) => !el.isDeleted));
+      const version = getSceneVersion(elements);
+      setSceneVersion(version);
       const key = [
-        getSceneVersion(elements),
+        version,
         Object.keys(files || {}).length,
         Math.round(appState.scrollX),
         Math.round(appState.scrollY),
@@ -133,6 +147,8 @@ export default function App() {
         title: c.title,
         place: c.place,
         note: c.note,
+        lat: c.lat ?? null,
+        lng: c.lng ?? null,
       },
       fileId: c.fileId,
       photo: null,
@@ -172,6 +188,8 @@ export default function App() {
       place: v.place.trim(),
       note: v.note.trim(),
       fileId,
+      lat: v.lat,
+      lng: v.lng,
     });
     // まず(0,0)に作ってから、置き場所へ動かす
     let newEls = await buildCardElements(card, 0, 0, photo);
@@ -218,9 +236,15 @@ export default function App() {
   };
 
   // ---- 一覧からカードへ移動 ----
-  const focusCard = (card) => {
+  const focusCard = (card, { forceBoard = false } = {}) => {
     const api = apiRef.current;
     if (!api) return;
+    setListOpen(false);
+    if (view === "map" && !forceBoard && hasLoc(card)) {
+      setMapFocus({ id: card.cardId, t: Date.now() });
+      return;
+    }
+    if (view === "map") setView("board");
     const els = api.getSceneElements().filter((el) => el.customData?.cardId === card.cardId);
     api.updateScene({
       appState: {
@@ -229,8 +253,8 @@ export default function App() {
       },
       captureUpdate: CaptureUpdateAction.NEVER,
     });
-    api.scrollToContent(els, { animate: true });
-    setListOpen(false);
+    // 地図から戻った直後はキャンバスの大きさが整ってから動かす
+    setTimeout(() => api.scrollToContent(els, { animate: true }), view === "map" ? 60 : 0);
   };
 
   // ---- バックアップ ----
@@ -277,20 +301,44 @@ export default function App() {
     showToast("バックアップから読み込みました");
   };
 
-  const cards = listOpen && apiRef.current ? listCards(apiRef.current.getSceneElements()) : [];
+  // 一覧や地図で使うカードの一覧（キャンバスの中身が変わったときだけ作り直す）
+  const needCards = listOpen || view === "map";
+  const cards = useMemo(
+    () => (needCards && apiRef.current ? listCards(apiRef.current.getSceneElements()) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [needCards, sceneVersion],
+  );
+  const files = useMemo(
+    () => (view === "map" && apiRef.current ? { ...apiRef.current.getFiles() } : null),
+    [view, sceneVersion],
+  );
+
+  const saveLabel =
+    saveState === "saving"
+      ? "保存中…"
+      : saveState === "error"
+        ? "保存できていません"
+        : lastSavedAt
+          ? `保存済み（${lastSavedAt.getHours()}:${String(lastSavedAt.getMinutes()).padStart(2, "0")}）`
+          : "保存済み";
 
   return (
     <div className="app">
       <header className="bar">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden>🗺️</span>
-          <span className="brand-name">人生地図ボード</span>
-          <span className={`save save-${saveState}`}>
-            {saveState === "saving" ? "保存中…" : saveState === "saved" ? "保存済み" : saveState === "error" ? "未保存" : ""}
-          </span>
-        </div>
+        <button
+          className="btn btn-view"
+          onClick={() => {
+            setMenuOpen(false);
+            setListOpen(false);
+            setView((v) => (v === "board" ? "map" : "board"));
+          }}
+        >
+          {view === "board" ? "🗾 地図" : "🗒 ボード"}
+        </button>
+        <span className="brand-name">人生地図ボード</span>
+        <span className="spacer" />
         <div className="actions">
-          {selectedCardId && (
+          {view === "board" && selectedCardId && (
             <button className="btn" onClick={() => openEdit()}>
               ✏️ 編集
             </button>
@@ -307,12 +355,13 @@ export default function App() {
           <button className="btn btn-primary" onClick={openNew}>
             ＋ 思い出
           </button>
-          <button className="btn btn-icon" aria-label="メニュー" onClick={() => setMenuOpen((o) => !o)}>
-            ⋯
+          <button className="btn btn-icon btn-menu" aria-label="メニュー" onClick={() => setMenuOpen((o) => !o)}>
+            ⋯<span className={`dot dot-${saveState}`} aria-hidden />
           </button>
         </div>
         {menuOpen && (
           <div className="menu" role="menu">
+            <div className={`menu-status save-${saveState}`}>● {saveLabel}</div>
             <button onClick={saveBackup}>💾 バックアップを保存</button>
             <button onClick={pickImport}>📂 バックアップから読み込む</button>
             <div className="menu-note">ボードはこの端末のブラウザに自動保存されます。大事な思い出は時々バックアップしてください。</div>
@@ -330,7 +379,18 @@ export default function App() {
             canvasActions: { loadScene: false, export: false, saveToActiveFile: false, saveAsImage: false },
           }}
         />
-        {!hasContent && (
+        {view === "map" && (
+          <Suspense fallback={<div className="mapview loading">地図を読み込んでいます…</div>}>
+            <MapView
+              cards={cards}
+              files={files}
+              focusId={mapFocus}
+              onOpenBoard={(c) => focusCard(c, { forceBoard: true })}
+              onEdit={(id) => openEdit(id)}
+            />
+          </Suspense>
+        )}
+        {view === "board" && !hasContent && (
           <div className="empty-hint">
             <div className="empty-title">あなたの人生を、1枚ずつ。</div>
             <div>右上の「＋ 思い出」から、最初のカードを作りましょう。</div>
@@ -355,6 +415,7 @@ export default function App() {
                       <span className="li-when">{whenLabel(c)}</span>
                       <span className="li-title">{c.title}</span>
                       {c.place && <span className="li-place">📍 {c.place}</span>}
+                      {view === "map" && !hasLoc(c) && <span className="li-nomap">地図に未設定（ボードで開きます）</span>}
                     </button>
                   </li>
                 ))}
@@ -409,15 +470,20 @@ function daysIn(year, month) {
 function CardForm({ form, setForm, onSubmit, onDelete, onError }) {
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const photoInput = useRef(null);
   const v = form.values;
   const set = (k) => (e) => setForm({ ...form, values: { ...v, [k]: e.target.value } });
 
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && setForm(null);
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (pickerOpen) setPickerOpen(false);
+      else setForm(null);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setForm]);
+  }, [setForm, pickerOpen]);
 
   const onPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -499,11 +565,54 @@ function CardForm({ form, setForm, onSubmit, onDelete, onError }) {
           <input type="text" placeholder="例：小学校の入学式" value={v.title} onChange={set("title")} />
         </label>
 
-        <label className="field">
-          <span>どこで？</span>
-          <input type="text" placeholder="例：宮城県仙台市青葉区" value={v.place} onChange={set("place")} />
-          <small>地図との連動は次の段階（②）で追加します</small>
-        </label>
+        <div className="field">
+          <label htmlFor="place-input">どこで？</label>
+          <input
+            id="place-input"
+            type="text"
+            placeholder="例：宮城県仙台市青葉区"
+            value={v.place}
+            onChange={set("place")}
+          />
+          {hasLoc(v) ? (
+            <div className="loc-row">
+              <span className="loc-ok">🗾 地図に置きました</span>
+              <button type="button" className="btn btn-small" onClick={() => setPickerOpen(true)}>
+                変更
+              </button>
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={() => setForm({ ...form, values: { ...v, lat: null, lng: null } })}
+              >
+                外す
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn loc-add" onClick={() => setPickerOpen(true)}>
+              🗾 地図で場所を選ぶ
+            </button>
+          )}
+        </div>
+
+        {pickerOpen &&
+          createPortal(
+          <Suspense fallback={<div className="picker loading">地図を読み込んでいます…</div>}>
+            <MapPicker
+              initial={hasLoc(v) ? { lat: v.lat, lng: v.lng } : null}
+              query={v.place}
+              onClose={() => setPickerOpen(false)}
+              onPick={(p) => {
+                setForm({
+                  ...form,
+                  values: { ...v, lat: p.lat, lng: p.lng, place: v.place.trim() ? v.place : p.name || v.place },
+                });
+                setPickerOpen(false);
+              }}
+            />
+          </Suspense>,
+            document.body,
+          )}
 
         <div className="field">
           <span>写真</span>
