@@ -1,6 +1,7 @@
 // カードの場所を地図で選ぶ画面：住所で探す → 地図をタップして微調整 → 決定
 import { useEffect, useRef, useState } from "react";
 import { L, createMap, searchPlace } from "./mapCommon.js";
+import { SkyBanner, SkySelect, useSkyOverlay } from "./sky.jsx";
 
 const pickIcon = L.divIcon({
   className: "pin-wrap",
@@ -18,6 +19,8 @@ export default function MapPicker({ initial, query, onPick, onClose }) {
   const [results, setResults] = useState([]);
   const [source, setSource] = useState(null);
   const [status, setStatus] = useState("");
+  const [ready, setReady] = useState(false);
+  const sky = useSkyOverlay(mapRef, ready);
 
   const runSearch = async (text, { autoPick = false } = {}) => {
     if (!text.trim()) return;
@@ -52,6 +55,7 @@ export default function MapPicker({ initial, query, onPick, onClose }) {
     map.on("click", (e) => setPicked({ lat: e.latlng.lat, lng: e.latlng.lng }));
     if (initial) map.setView([initial.lat, initial.lng], 15);
     else if (query) runSearch(query, { autoPick: true });
+    setReady(true);
     return () => map.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -113,7 +117,10 @@ export default function MapPicker({ initial, query, onPick, onClose }) {
           </ul>
         )}
       </div>
-      <div ref={elRef} className="picker-map" />
+      <div className="picker-mapwrap">
+        <div ref={elRef} className="picker-map" />
+        {sky.era && <SkyBanner era={sky.era} zoom={sky.zoom} onClose={() => sky.setEraKey(null)} />}
+      </div>
       <div className="picker-foot">
         <div className="picker-hint">
           {results.length > 0
@@ -121,6 +128,10 @@ export default function MapPicker({ initial, query, onPick, onClose }) {
             : picked
               ? "ピンは指でずらせます。違う場所なら地図をタップ。"
               : "住所で探すか、思い出の場所を地図でタップしてください。"}
+        </div>
+        <div className="picker-sky">
+          <SkySelect eraKey={sky.eraKey} setEraKey={sky.setEraKey} />
+          <span className="picker-sky-hint">昔の写真で家を探せます</span>
         </div>
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={onClose}>

@@ -51,7 +51,13 @@ export async function searchPlace(q) {
   const query = q.trim();
   if (!query) return { source: null, results: [] };
   try {
-    const r = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(query)}`);
+    // 地理院の検索が止まっていると待たされるので、4秒で見切って予備へ
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(query)}`, {
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
     if (r.ok) {
       const data = await r.json();
       if (Array.isArray(data) && data.length) {
