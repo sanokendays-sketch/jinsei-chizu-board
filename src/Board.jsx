@@ -171,7 +171,15 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
     const api = apiRef.current;
     if (!api) return;
     setMenuOpen(false);
-    const els = await buildSampleElements(template);
+    // すでにカードがあるボードでは、重ならないように右側に並べる
+    const alive = api.getSceneElements();
+    let origin;
+    if (alive.length) {
+      const maxX = Math.max(...alive.map((el) => el.x + Math.abs(el.width)));
+      const minY = Math.min(...alive.map((el) => el.y));
+      origin = { x: maxX + 160, y: minY };
+    }
+    const els = await buildSampleElements(template, origin);
     api.updateScene({
       elements: [...api.getSceneElementsIncludingDeleted(), ...els],
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
