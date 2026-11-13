@@ -1433,3 +1433,87 @@ body,
     display: block;
   }
 }
+
+/* ===== 見本のライフストーリー ===== */
+.empty-hint .sample-btn {
+  pointer-events: auto;
+  margin: 14px 0 6px;
+  font-size: 17px;
+  padding: 12px 20px;
+  min-height: 48px;
+  box-shadow: 0 6px 16px rgba(120, 60, 10, 0.25);
+}
+
+.sample-bar {
+  position: relative;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fff7e6;
+  border-bottom: 1px solid #f0d9ae;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #5b4a3a;
+}
+
+.sample-bar > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.sample-bar-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.sample-bar .btn-small {
+  min-height: 30px;
+  font-size: 12px;
+  padding: 3px 9px;
+  flex: none;
+}
+
+.tl-empty-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 4px 0 14px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  flex: none;
+}
+
+.check small {
+  display: block;
+  color: var(--sub);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+  .sample-bar {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .sample-bar-sub {
+    display: none;
+  }
+}

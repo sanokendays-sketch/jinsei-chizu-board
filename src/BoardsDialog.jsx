@@ -1,6 +1,7 @@
 // ④ ボードの切り替え・新しいボード（テンプレートから）・名前の変更・削除
 import { useState } from "react";
 import { TEMPLATES, templateById } from "./templates.js";
+import { hasSampleFor } from "./sample.js";
 
 const dateLabel = (t) => {
   if (!t) return "";
@@ -12,6 +13,7 @@ export default function BoardsDialog({ index, onClose, onSwitch, onCreate, onRen
   const [mode, setMode] = useState("list"); // list | new
   const [picked, setPicked] = useState(null); // 新しいボードのテンプレート
   const [title, setTitle] = useState("");
+  const [withSample, setWithSample] = useState(true);
   const [renaming, setRenaming] = useState(null); // { id, title }
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -126,7 +128,9 @@ export default function BoardsDialog({ index, onClose, onSwitch, onCreate, onRen
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  onCreate(picked.id, title.trim() || picked.newTitle);
+                  onCreate(picked.id, title.trim() || picked.newTitle, {
+                    withSample: hasSampleFor(picked) && withSample,
+                  });
                 }}
               >
                 <p className="dialog-lead">
@@ -136,6 +140,15 @@ export default function BoardsDialog({ index, onClose, onSwitch, onCreate, onRen
                   <span>ボードの名前</span>
                   <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
                 </label>
+                {hasSampleFor(picked) && (
+                  <label className="check">
+                    <input type="checkbox" checked={withSample} onChange={(e) => setWithSample(e.target.checked)} />
+                    <span>
+                      見本の人生（架空）を入れておく
+                      <small>誕生・入学・就職・結婚・転勤…の見本。書き換えて使えて、あとでまとめて消せます</small>
+                    </span>
+                  </label>
+                )}
                 <div className="dialog-actions">
                   <button type="button" className="btn" onClick={() => setPicked(null)}>
                     戻る

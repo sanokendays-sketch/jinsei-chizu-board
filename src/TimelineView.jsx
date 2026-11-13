@@ -28,7 +28,7 @@ function decadeOf(c) {
   return c.year ? Math.floor(c.year / 10) * 10 : null;
 }
 
-export default function TimelineView({ cards, files, template, meta, setMeta, title, onOpen, onEdit, onAdd }) {
+export default function TimelineView({ cards, files, template, meta, setMeta, title, onOpen, onEdit, onAdd, onSample }) {
   const birth = findBirth(meta, cards, template);
   const groups = [];
   for (const c of cards) {
@@ -71,9 +71,16 @@ export default function TimelineView({ cards, files, template, meta, setMeta, ti
         {cards.length === 0 ? (
           <div className="tl-empty">
             <p>まだカードがありません。</p>
-            <button className="btn btn-primary" onClick={onAdd}>
-              ＋ {template.addLabel}を書く
-            </button>
+            <div className="tl-empty-actions">
+              {onSample && (
+                <button className="btn btn-primary" onClick={onSample}>
+                  📖 見本の人生を入れてみる
+                </button>
+              )}
+              <button className={onSample ? "btn" : "btn btn-primary"} onClick={onAdd}>
+                ＋ {template.addLabel}を書く
+              </button>
+            </div>
           </div>
         ) : (
           groups.map((g) => (

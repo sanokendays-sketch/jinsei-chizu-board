@@ -2,6 +2,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import Board from "./Board.jsx";
 import { templateById } from "./templates.js";
+import { buildSampleElements } from "./sample.js";
 import {
   deleteBoardData,
   loadBoard,
@@ -48,10 +49,15 @@ export default function App() {
     await open(id);
   };
 
-  const create = async (templateId, title, data = null) => {
+  const create = async (templateId, title, data = null, { withSample = false } = {}) => {
     const id = newBoardId();
     const now = Date.now();
-    const cards = data ? data.elements.filter((el) => el.customData?.kind === "memory").length : 0;
+    if (!data && withSample) {
+      // 見本のライフストーリー入りで作る（開いたときに全体が見えるように fitOnOpen を付ける）
+      const elements = await buildSampleElements(templateById(templateId));
+      data = { elements, files: {}, meta: { fitOnOpen: true } };
+    }
+    const cards = data ? data.elements.filter((el) => el.customData?.kind === "memory" && !el.isDeleted).length : 0;
     if (data) {
       await writeBoardData(id, { elements: data.elements, files: data.files || {}, appState: {}, meta: data.meta || {} });
     }
@@ -99,7 +105,7 @@ export default function App() {
             index={index}
             onClose={() => setBoardsOpen(false)}
             onSwitch={switchTo}
-            onCreate={(templateId, title) => create(templateId, title)}
+            onCreate={(templateId, title, opts) => create(templateId, title, null, opts)}
             onRename={(id, title) =>
               changeIndex((idx) => ({ ...idx, boards: idx.boards.map((b) => (b.id === id ? { ...b, title } : b)) }))
             }

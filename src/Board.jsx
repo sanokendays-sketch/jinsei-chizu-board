@@ -19,6 +19,7 @@ import {
 } from "./cards.js";
 import { makeBackup, offerFile, parseBackup, saveBoard } from "./storage.js";
 import CardForm from "./CardForm.jsx";
+import { buildSampleElements, hasSampleFor, isSampleElement } from "./sample.js";
 
 // 地図と年表は開いたときに読み込む（最初の表示を軽くするため）
 const MapView = lazy(() => import("./MapView.jsx"));
@@ -60,6 +61,8 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
 
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [hasContent, setHasContent] = useState(() => (initialData.elements || []).some((el) => !el.isDeleted));
+  const [hasSample, setHasSample] = useState(() => (initialData.elements || []).some(isSampleElement));
+  const [confirmSampleRemove, setConfirmSampleRemove] = useState(false);
   const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
   const [form, setForm] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -130,6 +133,7 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
       latestRef.current = { elements, appState, files };
       setSelectedCardId(findCardIdInSelection(elements, appState.selectedElementIds));
       setHasContent(elements.some((el) => !el.isDeleted));
+      setHasSample(elements.some(isSampleElement));
       const version = getSceneVersion(elements);
       setSceneVersion(version);
       const key = [
@@ -147,6 +151,46 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
     },
     [scheduleSave],
   );
+
+  // 見本入りで作ったボードは、開いたときに全体が見えるように縮める
+  useEffect(() => {
+    if (!metaRef.current?.fitOnOpen) return;
+    const t = setTimeout(() => {
+      const api = apiRef.current;
+      if (!api) return;
+      api.scrollToContent(api.getSceneElements(), { fitToViewport: true, viewportZoomFactor: 0.9 });
+      const { fitOnOpen, ...rest } = metaRef.current;
+      setMeta(rest);
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- 見本のライフストーリー ----
+  const insertSample = async () => {
+    const api = apiRef.current;
+    if (!api) return;
+    setMenuOpen(false);
+    const els = await buildSampleElements(template);
+    api.updateScene({
+      elements: [...api.getSceneElementsIncludingDeleted(), ...els],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    setView("board");
+    setTimeout(() => api.scrollToContent(els, { fitToViewport: true, viewportZoomFactor: 0.9, animate: true }), 80);
+    showToast("見本の人生を入れました。地図と年表も見てみてください");
+  };
+
+  const removeSample = () => {
+    const api = apiRef.current;
+    if (!api) return;
+    const elements = api
+      .getSceneElementsIncludingDeleted()
+      .map((el) => (isSampleElement(el) ? newElementWith(el, { isDeleted: true }) : el));
+    api.updateScene({ elements, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+    setConfirmSampleRemove(false);
+    showToast("見本を消しました。書き換えたカードは残っています");
+  };
 
   // ---- カードの追加・編集 ----
   const openNew = () => {
@@ -412,6 +456,12 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
               📤 書き出す・印刷する
               <span className="menu-sub">画像・年表のPDF・文章</span>
             </button>
+            {hasSampleFor(template) && !hasSample && (
+              <button onClick={insertSample}>
+                📖 見本の人生を入れる
+                <span className="menu-sub">架空の人物の一生。あとでまとめて消せます</span>
+              </button>
+            )}
             <button onClick={saveBackup}>💾 バックアップを保存</button>
             <button onClick={pickImport}>📂 バックアップから読み込む</button>
             <div className="menu-note">
@@ -420,6 +470,29 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
           </div>
         )}
       </header>
+
+      {hasSample && (
+        <div className="sample-bar" role="note">
+          <span>
+            📖 <b>見本の人生</b>（架空の人物）
+            <span className="sample-bar-sub">　書き換えたカードは、あなたのカードとして残ります</span>
+          </span>
+          {confirmSampleRemove ? (
+            <span className="sample-bar-actions">
+              <button className="btn btn-small btn-danger" onClick={removeSample}>
+                見本を消す
+              </button>
+              <button className="btn btn-small" onClick={() => setConfirmSampleRemove(false)}>
+                やめる
+              </button>
+            </span>
+          ) : (
+            <button className="btn btn-small" onClick={() => setConfirmSampleRemove(true)}>
+              見本を消す…
+            </button>
+          )}
+        </div>
+      )}
 
       <main className="canvas">
         <Excalidraw
@@ -434,8 +507,24 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
         {view === "board" && !hasContent && (
           <div className="empty-hint">
             <div className="empty-title">{template.emptyTitle}</div>
-            <div>右上の「＋ {template.addLabel}」から、最初のカードを作りましょう。</div>
-            <div className="empty-sub">{template.emptySub}</div>
+            {hasSampleFor(template) ? (
+              <>
+                <div>何を書けばいいか迷ったら、まず見本を見てみましょう。</div>
+                <button className="btn btn-primary sample-btn" onClick={insertSample}>
+                  📖 見本の人生を入れてみる
+                </button>
+                <div className="empty-sub">
+                  誕生から入学・就職・結婚・転勤まで、架空の人物の一生です。あとでまとめて消せます。
+                  <br />
+                  自分で書くなら、右上の「＋ {template.addLabel}」から。
+                </div>
+              </>
+            ) : (
+              <>
+                <div>右上の「＋ {template.addLabel}」から、最初のカードを作りましょう。</div>
+                <div className="empty-sub">{template.emptySub}</div>
+              </>
+            )}
           </div>
         )}
         {view === "board" && selectedCardId && (
@@ -466,6 +555,7 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
               onOpen={focusCard}
               onEdit={(id) => openEdit(id)}
               onAdd={openNew}
+              onSample={hasSampleFor(template) ? insertSample : null}
             />
           </Suspense>
         )}
