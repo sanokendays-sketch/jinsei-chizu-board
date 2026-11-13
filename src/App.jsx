@@ -54,8 +54,8 @@ export default function App() {
     const now = Date.now();
     if (!data && withSample) {
       // 見本のライフストーリー入りで作る（開いたときに全体が見えるように fitOnOpen を付ける）
-      const elements = await buildSampleElements(templateById(templateId));
-      data = { elements, files: {}, meta: { fitOnOpen: true } };
+      const { elements, files } = await buildSampleElements(templateById(templateId));
+      data = { elements, files: Object.fromEntries(files.map((f) => [f.id, f])), meta: { fitOnOpen: true } };
     }
     const cards = data ? data.elements.filter((el) => el.customData?.kind === "memory" && !el.isDeleted).length : 0;
     if (data) {

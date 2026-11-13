@@ -179,7 +179,8 @@ export default function Board({ board, template, initial, onSaved, onOpenBoards,
       const minY = Math.min(...alive.map((el) => el.y));
       origin = { x: maxX + 160, y: minY };
     }
-    const els = await buildSampleElements(template, origin);
+    const { elements: els, files: sampleFiles } = await buildSampleElements(template, origin);
+    if (sampleFiles.length) api.addFiles(sampleFiles);
     api.updateScene({
       elements: [...api.getSceneElementsIncludingDeleted(), ...els],
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
